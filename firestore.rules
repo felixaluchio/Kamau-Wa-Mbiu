@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Events collection for rallies, photo galleries, and video broadcasts
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if true; // Allow admin updates or if request.auth != null
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

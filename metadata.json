@@ -1,0 +1,6 @@
+{
+  "name": "Kamau Wa Mbiu Website",
+  "description": "Premium political leadership website for Kamau Wa Mbiu, featuring an elegant design system and cinematic layout.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

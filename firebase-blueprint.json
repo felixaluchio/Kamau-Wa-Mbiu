@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "Event": {
+      "title": "Event",
+      "description": "Party events, rallies, photo galleries, and video broadcasts",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["upcoming", "gallery", "video"],
+          "description": "The category of the event record"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "The headline title of the event"
+        },
+        "date": {
+          "type": "string",
+          "description": "The ISO date string of the event"
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "The venue or physical location"
+        },
+        "county": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "The administrative county in Kenya"
+        },
+        "category": {
+          "type": "string",
+          "description": "Event classification"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Detailed notes and schedule summary"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "ImgBB hosted image URL"
+        },
+        "videoUrl": {
+          "type": "string",
+          "description": "YouTube or Vimeo video URL"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Firestore server timestamp"
+        }
+      },
+      "required": ["type", "title", "date"]
+    }
+  },
+  "firestore": {
+    "/events/{eventId}": {
+      "schema": "Event",
+      "description": "Contains upcoming rallies, photo gallery records, and video links"
+    }
+  }
+}
