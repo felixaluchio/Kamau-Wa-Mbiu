@@ -45,17 +45,17 @@ export function JourneyTimeline() {
   const lineHeight = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   return (
-    <section className="py-24 sm:py-32 bg-brand-neutral-charcoal text-brand-neutral-white relative overflow-hidden" ref={containerRef}>
-      {/* Background Image & Atmospheric Overlays */}
+  <section className="py-24 sm:py-32 bg-brand-neutral-charcoal text-brand-neutral-white relative overflow-hidden" ref={containerRef}>
+      {/* Background Image & Moderate Overlay */}
       <div className="absolute inset-0 z-0">
         <img 
           src={timelineBgUrl} 
           alt="Kamau Wa Mbiu Campaign Rally" 
           referrerPolicy="no-referrer"
-          className="w-full h-full object-cover object-center sm:object-top opacity-60 scale-105 filter saturate-110"
+          className="w-full h-full object-cover object-center sm:object-top opacity-100 scale-105 filter saturate-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-brand-neutral-charcoal/90 via-brand-neutral-charcoal/75 to-brand-neutral-charcoal/90" />
-        <div className="absolute inset-0 bg-brand-neutral-charcoal/40 backdrop-blur-[1px]" />
+        {/* This single line adds a balanced shadow to make text readable */}
+        <div className="absolute inset-0 bg-black/40" />
       </div>
 
       <div className="max-w-4xl mx-auto px-xs sm:px-sm lg:px-md relative z-10">
