@@ -1,5 +1,7 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './lib/firebase';
 import { AnimatePresence } from 'motion/react';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -36,7 +38,8 @@ import { AdminMedia } from './pages/AdminMedia';
 import { AdminSettings } from './pages/AdminSettings';
 import { AdminMessages } from './pages/AdminMessages';
 import { AdminEvents } from './pages/AdminEvents';
-import { AdminLogin } from './pages/AdminLogin';
+import { AdminLogin } from './components/admin/AdminLogin';
+import { DarkAdminEventsDashboard } from './components/admin/DarkAdminUpcomingEvents';
 
 import { CommunityDashboard } from './pages/CommunityDashboard';
 import { CommunityInitiatives } from './pages/CommunityInitiatives';
@@ -52,6 +55,60 @@ import { SmoothScroll } from './components/SmoothScroll';
 import { IntroSequence } from './components/IntroSequence';
 import { AIAssistant } from './components/AIAssistant';
 import { DynamicBackground } from './components/DynamicBackground';
+
+// Protected Route Component for Admin Dashboard
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      return (
+        sessionStorage.getItem('adminAuth') === 'true' ||
+        localStorage.getItem('adminToken') === 'active' ||
+        localStorage.getItem('isAdminAuthenticated') === 'true' ||
+        Boolean(auth?.currentUser)
+      );
+    } catch {
+      return false;
+    }
+  });
+  const [authChecking, setAuthChecking] = useState<boolean>(!isAuthenticated);
+
+  useEffect(() => {
+    if (!auth) {
+      setAuthChecking(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsAuthenticated(true);
+      } else {
+        const hasSession =
+          sessionStorage.getItem('adminAuth') === 'true' ||
+          localStorage.getItem('adminToken') === 'active' ||
+          localStorage.getItem('isAdminAuthenticated') === 'true';
+        setIsAuthenticated(hasSession);
+      }
+      setAuthChecking(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-[#0B1121] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#00B87C] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/admin/login" replace state={{ from: location }} />;
+  }
+
+  return <>{children}</>;
+}
 
 function RouteWrapper() {
   const location = useLocation();
@@ -75,43 +132,43 @@ function RouteWrapper() {
     return (
       // @ts-ignore
       <Routes location={location} key={location.pathname}>
-        {/* Core 5 Dashboard Navigation Tabs */}
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/dashboard" element={<AdminDashboard />} />
+        {/* Core 5 Dashboard Navigation Tabs - Authenticated */}
+        <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
 
-        <Route path="/admin/about" element={<AdminAbout />} />
-        <Route path="/dashboard/about" element={<AdminAbout />} />
+        <Route path="/admin/about" element={<ProtectedRoute><AdminAbout /></ProtectedRoute>} />
+        <Route path="/dashboard/about" element={<ProtectedRoute><AdminAbout /></ProtectedRoute>} />
 
-        <Route path="/admin/vision" element={<AdminVisionManifesto />} />
-        <Route path="/dashboard/vision" element={<AdminVisionManifesto />} />
+        <Route path="/admin/vision" element={<ProtectedRoute><AdminVisionManifesto /></ProtectedRoute>} />
+        <Route path="/dashboard/vision" element={<ProtectedRoute><AdminVisionManifesto /></ProtectedRoute>} />
 
-        <Route path="/admin/events" element={<AdminEvents />} />
-        <Route path="/dashboard/events" element={<AdminEvents />} />
+        <Route path="/admin/events" element={<ProtectedRoute><DarkAdminEventsDashboard /></ProtectedRoute>} />
+        <Route path="/dashboard/events" element={<ProtectedRoute><DarkAdminEventsDashboard /></ProtectedRoute>} />
 
-        <Route path="/admin/membership" element={<AdminMembership />} />
-        <Route path="/dashboard/membership" element={<AdminMembership />} />
+        <Route path="/admin/membership" element={<ProtectedRoute><AdminMembership /></ProtectedRoute>} />
+        <Route path="/dashboard/membership" element={<ProtectedRoute><AdminMembership /></ProtectedRoute>} />
 
-        {/* Additional Admin Tools */}
-        <Route path="/admin/volunteers" element={<AdminMembership />} />
-        <Route path="/dashboard/volunteers" element={<AdminMembership />} />
+        {/* Additional Admin Tools - Authenticated */}
+        <Route path="/admin/volunteers" element={<ProtectedRoute><AdminVolunteers /></ProtectedRoute>} />
+        <Route path="/dashboard/volunteers" element={<ProtectedRoute><AdminVolunteers /></ProtectedRoute>} />
 
-        <Route path="/admin/content" element={<AdminContent />} />
-        <Route path="/dashboard/content" element={<AdminContent />} />
+        <Route path="/admin/content" element={<ProtectedRoute><AdminContent /></ProtectedRoute>} />
+        <Route path="/dashboard/content" element={<ProtectedRoute><AdminContent /></ProtectedRoute>} />
 
-        <Route path="/admin/media" element={<AdminMedia />} />
-        <Route path="/dashboard/media" element={<AdminMedia />} />
+        <Route path="/admin/media" element={<ProtectedRoute><AdminMedia /></ProtectedRoute>} />
+        <Route path="/dashboard/media" element={<ProtectedRoute><AdminMedia /></ProtectedRoute>} />
 
-        <Route path="/admin/messages" element={<AdminMessages />} />
-        <Route path="/dashboard/messages" element={<AdminMessages />} />
+        <Route path="/admin/messages" element={<ProtectedRoute><AdminMessages /></ProtectedRoute>} />
+        <Route path="/dashboard/messages" element={<ProtectedRoute><AdminMessages /></ProtectedRoute>} />
 
-        <Route path="/admin/ai" element={<AdminAIHub />} />
-        <Route path="/dashboard/ai" element={<AdminAIHub />} />
+        <Route path="/admin/ai" element={<ProtectedRoute><AdminAIHub /></ProtectedRoute>} />
+        <Route path="/dashboard/ai" element={<ProtectedRoute><AdminAIHub /></ProtectedRoute>} />
 
-        <Route path="/admin/settings" element={<AdminSettings />} />
-        <Route path="/dashboard/settings" element={<AdminSettings />} />
+        <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
+        <Route path="/dashboard/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
 
-        <Route path="/admin/*" element={<AdminDashboard />} />
-        <Route path="/dashboard/*" element={<AdminDashboard />} />
+        <Route path="/admin/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/dashboard/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       </Routes>
     );
   }
@@ -173,9 +230,16 @@ function RouteWrapper() {
 export default function App() {
   const [introComplete, setIntroComplete] = useState(() => {
     try {
-      return typeof window !== 'undefined' && sessionStorage.getItem('hasSeenIntro') === 'true';
-    } catch {
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname;
+        if (path.startsWith('/admin') || path.startsWith('/dashboard') || path === '/login') {
+          return true;
+        }
+        return sessionStorage.getItem('hasSeenIntro') === 'true';
+      }
       return false;
+    } catch {
+      return true;
     }
   });
 

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -12,7 +12,18 @@ const firebaseConfig = {
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const db = getFirestore(app);
+
+// Initialize Firestore with experimentalForceLongPolling to prevent backend disconnects
+// in sandboxed iframe environments where WebSockets may be blocked or dropped.
+let db: ReturnType<typeof getFirestore>;
+try {
+  db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+  });
+} catch (_) {
+  db = getFirestore(app);
+}
+
 const auth = getAuth(app);
 
 export { app, db, auth };

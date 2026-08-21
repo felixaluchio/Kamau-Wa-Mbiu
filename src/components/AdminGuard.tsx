@@ -12,15 +12,18 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if the user is authenticated in localStorage
-    const authStatus = localStorage.getItem('isAdminAuthenticated');
+    // Check if the user is authenticated in storage
+    const authStatus =
+      sessionStorage.getItem('adminAuth') === 'true' ||
+      localStorage.getItem('adminToken') === 'active' ||
+      localStorage.getItem('isAdminAuthenticated') === 'true';
 
-    if (authStatus === 'true') {
+    if (authStatus) {
       setIsAuthenticated(true);
     } else {
       setIsAuthenticated(false);
       // Redirect to login page and preserve the attempted route
-      navigate('/dashboard/login', { replace: true, state: { from: location } });
+      navigate('/admin/login', { replace: true, state: { from: location } });
     }
   }, [navigate, location]);
 

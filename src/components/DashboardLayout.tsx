@@ -21,10 +21,12 @@ import {
   User,
   Target,
   Calendar,
-  Users
+  Users,
+  ArrowLeft
 } from 'lucide-react';
 import { DashboardNav, PRIMARY_DASHBOARD_TABS } from './DashboardNav';
 import { AdminGuard } from './AdminGuard';
+import { auth } from '../lib/firebase';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -43,10 +45,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAdminAuthenticated');
+  const handleLogout = async () => {
+    try {
+      if (auth && typeof auth.signOut === 'function') {
+        await auth.signOut().catch(() => {});
+      }
+    } catch (_) {}
+
+    try {
+      sessionStorage.removeItem('adminAuth');
+      sessionStorage.removeItem('adminUser');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('isAdminAuthenticated');
+    } catch (_) {}
+
     setIsProfileDropdownOpen(false);
-    navigate('/dashboard/login', { replace: true });
+    navigate('/admin/login', { replace: true });
   };
 
   // Close popovers on click outside
@@ -319,6 +333,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* Back to Public Site Link */}
+              <Link
+                to="/"
+                title="Back to Public Website"
+                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-2xl border border-brand-neutral-grey/40 text-brand-neutral-charcoal/75 hover:text-brand-primary hover:border-brand-primary/40 hover:bg-brand-neutral-warm text-xs font-semibold transition-all group"
+              >
+                <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+                <span>Back to Site</span>
+              </Link>
+
+              {/* Direct Logout Button */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Log Out of Admin Dashboard"
+                className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-2xl border border-rose-200 bg-rose-50/80 text-rose-600 hover:bg-rose-600 hover:text-white hover:border-rose-600 text-xs font-bold transition-all shadow-xs cursor-pointer group"
+              >
+                <LogOut size={15} className="transition-transform group-hover:-translate-x-0.5" />
+                <span>Logout</span>
+              </button>
 
               {/* Vertical Divider */}
               <div className="w-px h-8 bg-brand-neutral-grey/30 hidden sm:block"></div>

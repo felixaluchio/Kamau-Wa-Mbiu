@@ -73,36 +73,66 @@ export function EventsPage() {
 
   // Real-time Firestore Listener
   useEffect(() => {
+    let isMounted = true;
+    let unsubscribeEvents = () => {};
+    let unsubscribeCampaign = () => {};
+
     try {
-      const q = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
-      const unsubscribe = onSnapshot(
-        q,
+      const qEvents = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+      unsubscribeEvents = onSnapshot(
+        qEvents,
         (snapshot) => {
+          if (!isMounted) return;
           const rawItems = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           }));
-          const seen = new Set<string>();
-          const items: any[] = [];
-          for (const item of rawItems) {
-            if (!seen.has(item.id)) {
-              seen.add(item.id);
-              items.push(item);
-            }
-          }
-          setDbItems(items);
+          setDbItems((prev) => {
+            const map = new Map<string, any>();
+            prev.forEach((d) => map.set(d.id, d));
+            rawItems.forEach((d) => map.set(d.id, d));
+            return Array.from(map.values());
+          });
           setLoading(false);
         },
         (error) => {
-          console.warn('Firestore onSnapshot error:', error);
-          setLoading(false);
+          console.warn('Firestore events listener error:', error);
+          if (isMounted) setLoading(false);
         }
       );
-      return () => unsubscribe();
+
+      const qCampaign = query(collection(db, 'campaign_events'), orderBy('createdAt', 'desc'));
+      unsubscribeCampaign = onSnapshot(
+        qCampaign,
+        (snapshot) => {
+          if (!isMounted) return;
+          const rawCampaign = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            type: 'gallery',
+            ...doc.data(),
+          }));
+          setDbItems((prev) => {
+            const map = new Map<string, any>();
+            prev.forEach((d) => map.set(d.id, d));
+            rawCampaign.forEach((d) => map.set(d.id, d));
+            return Array.from(map.values());
+          });
+          setLoading(false);
+        },
+        (error) => {
+          console.warn('Firestore campaign_events error:', error);
+        }
+      );
     } catch (err) {
       console.warn('Error connecting to Firestore:', err);
-      setLoading(false);
+      if (isMounted) setLoading(false);
     }
+
+    return () => {
+      isMounted = false;
+      unsubscribeEvents();
+      unsubscribeCampaign();
+    };
   }, []);
 
   // Filter Firestore items strictly by type (no mock fallbacks)
@@ -119,22 +149,41 @@ export function EventsPage() {
     }));
 
   const pastEvents: PastEvent[] = dbItems
-    .filter((item) => item.type === 'gallery')
-    .map((item) => ({
-      id: item.id,
-      title: item.title,
-      date: item.date || 'Recent Event',
-      location: item.location || 'Designated Venue',
-      type: item.category || 'Photo Showcase',
-      attendees: `${item.photoCount || 1}+ Photographs`,
-      recap: item.description || 'Community gathering and grassroots mobilization highlights captured in photographic recap.',
-      photos: [
-        {
-          url: item.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80',
-          caption: `${item.title} - ${item.location}`
-        }
-      ]
-    }));
+    .filter((item) => item.type === 'gallery' || item.photos || (item.imageUrl && item.type !== 'upcoming'))
+    .map((item) => {
+      let photoList: EventPhoto[] = [];
+      if (Array.isArray(item.photos) && item.photos.length > 0) {
+        photoList = item.photos.map((url: string, pIdx: number) => ({
+          url,
+          caption: `${item.title || 'Civic Event'} - Photo ${pIdx + 1}`
+        }));
+      } else if (item.imageUrl) {
+        photoList = [
+          {
+            url: item.imageUrl,
+            caption: `${item.title} - ${item.location || 'Designated Venue'}`
+          }
+        ];
+      } else {
+        photoList = [
+          {
+            url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80',
+            caption: `${item.title} - ${item.location || 'Designated Venue'}`
+          }
+        ];
+      }
+
+      return {
+        id: item.id,
+        title: item.title || 'Photo Gallery Showcase',
+        date: item.date || 'Recent Event',
+        location: item.location || 'Designated Venue',
+        type: item.category || 'Photo Showcase',
+        attendees: `${photoList.length}+ Photographs`,
+        recap: item.description || 'Community gathering and grassroots mobilization highlights captured in photographic recap.',
+        photos: photoList
+      };
+    });
 
   const videoList = dbItems
     .filter((item) => item.type === 'video')
@@ -189,7 +238,7 @@ export function EventsPage() {
           </motion.div>
 
           {/* Events Pill-Shaped Toggle */}
-          <div className="flex justify-center mb-12">
+          <div className="flex justify-center mb-10 sm:mb-12 w-full max-w-xl mx-auto px-1 sm:px-0">
             <EventsTabToggle 
               activeTab={activeTab} 
               onChange={setActiveTab} 

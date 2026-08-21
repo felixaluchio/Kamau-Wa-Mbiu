@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home,
   User, 
@@ -9,9 +9,11 @@ import {
   BrainCircuit,
   Settings, 
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { auth } from '../lib/firebase';
 
 export interface NavItemConfig {
   id: string;
@@ -47,6 +49,25 @@ export function DashboardNav({
   isMobile = false 
 }: DashboardNavProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      if (auth && typeof auth.signOut === 'function') {
+        await auth.signOut().catch(() => {});
+      }
+    } catch (_) {}
+
+    try {
+      sessionStorage.removeItem('adminAuth');
+      sessionStorage.removeItem('adminUser');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('isAdminAuthenticated');
+    } catch (_) {}
+
+    if (onItemClick) onItemClick();
+    navigate('/admin/login', { replace: true });
+  };
 
   const isRouteActive = (tabPath: string) => {
     const current = location.pathname;
@@ -187,14 +208,14 @@ export function DashboardNav({
         )}
       </div>
 
-      {/* Public Site Quick Link */}
-      <div className="px-3 pt-4 border-t border-brand-neutral-grey/20">
+      {/* Bottom Actions & Public Site Quick Link */}
+      <div className="px-3 pt-3 border-t border-brand-neutral-grey/20 space-y-1">
         <Link
           to="/"
           target="_blank"
           className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-brand-neutral-charcoal/60 hover:text-brand-primary hover:bg-brand-neutral-warm transition-colors group"
         >
-          <ExternalLink size={16} className="text-brand-neutral-charcoal/40 group-hover:text-brand-primary" />
+          <ExternalLink size={16} className="text-brand-neutral-charcoal/40 group-hover:text-brand-primary shrink-0" />
           {(!isCollapsed || isMobile) && (
             <div className="flex-1 flex items-center justify-between">
               <span>View Public Portal</span>
@@ -202,6 +223,18 @@ export function DashboardNav({
             </div>
           )}
         </Link>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          title="Log Out"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors group cursor-pointer text-left"
+        >
+          <LogOut size={16} className="text-rose-500 group-hover:-translate-x-0.5 transition-transform shrink-0" />
+          {(!isCollapsed || isMobile) && (
+            <span>Log Out</span>
+          )}
+        </button>
       </div>
     </nav>
   );
