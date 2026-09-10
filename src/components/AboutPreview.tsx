@@ -55,7 +55,7 @@ export function AboutPreview() {
             <div className="mb-12 flex flex-col items-start">
               {/* Signature Graphic Placeholdler */}
               <div className="font-heading italic text-4xl text-brand-neutral-charcoal mb-2">Kamau Wa Mbiu</div>
-              <div className="text-[10px] uppercase tracking-widest text-brand-neutral-charcoal/40 font-bold">Candidate for Governor</div>
+              <div className="text-[10px] uppercase tracking-widest text-brand-neutral-charcoal/40 font-bold">Incoming Limuru MP 2027</div>
             </div>
 
             <Link to="/about">
