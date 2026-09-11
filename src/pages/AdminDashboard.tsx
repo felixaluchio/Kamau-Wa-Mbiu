@@ -22,9 +22,7 @@ import { motion } from 'motion/react';
 
 export function AdminDashboard() {
   const stats = [
-    { label: 'Registered Citizens', value: '1,248', increase: '+14% this month', icon: <Users size={22} />, link: '/admin/membership' },
     { label: 'Active Campaign Events', value: '12', increase: 'Next 30 days', icon: <Calendar size={22} />, link: '/admin/events' },
-    { label: 'Biography & Timeline Milestones', value: '8', increase: 'Verified & Published', icon: <User size={22} />, link: '/admin/about' },
     { label: 'Community Volunteer Leads', value: '184', increase: 'Across 5 Wards', icon: <Users size={22} />, link: '/admin/membership' },
   ];
 
@@ -88,8 +86,8 @@ export function AdminDashboard() {
           </div>
         </div>
 
-        {/* 4 Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* 2 Stat Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {stats.map((stat, idx) => (
             <motion.div
               key={idx}

@@ -272,8 +272,7 @@ export function EventsPage() {
                 ) : (
                   upcomingEvents.map((evt, idx) => {
                     const dateParts = String(evt.date).split(' ');
-                    const month = dateParts[0] || 'TBA';
-                    const day = dateParts[1] ? dateParts[1].replace(',', '') : '';
+                    const month = dateParts[0] || 'Upcoming';
 
                     return (
                       <motion.div 
@@ -285,8 +284,7 @@ export function EventsPage() {
                         className="bg-brand-neutral-warm rounded-3xl p-8 sm:p-10 border border-brand-neutral-grey/50 hover:border-brand-primary/30 hover:shadow-xl transition-all duration-300 flex flex-col md:flex-row items-center gap-8 group"
                       >
                         <div className="shrink-0 text-center bg-brand-neutral-white border border-brand-neutral-grey/50 rounded-2xl p-6 min-w-[140px]">
-                          <div className="font-body text-sm font-bold text-brand-accent uppercase mb-1">{month}</div>
-                          <div className="font-heading text-4xl text-brand-neutral-charcoal">{day || '2027'}</div>
+                          <div className="font-body text-sm font-bold text-brand-accent uppercase">{month}</div>
                         </div>
                         
                         <div className="flex-grow text-center md:text-left">

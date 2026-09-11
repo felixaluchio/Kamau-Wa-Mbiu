@@ -133,19 +133,19 @@ export function CreateEventModal({ isOpen, onClose, onSubmit }: CreateEventModal
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="relative bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl border border-slate-200/80 flex flex-col z-10"
+            className="relative bg-white rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-hidden shadow-2xl border border-slate-200/80 flex flex-col z-10 m-2 sm:m-0"
           >
             {/* Modal Header */}
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#1148B8]/10 text-[#1148B8] flex items-center justify-center font-bold">
-                  <Calendar size={20} />
+            <div className="px-4 sm:px-6 py-3.5 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#1148B8]/10 text-[#1148B8] flex items-center justify-center font-bold shrink-0">
+                  <Calendar size={18} className="sm:w-5 sm:h-5" />
                 </div>
                 <div>
-                  <h2 className="font-heading text-xl font-bold text-slate-900">
+                  <h2 className="font-heading text-lg sm:text-xl font-bold text-slate-900">
                     Create New Event
                   </h2>
-                  <p className="text-xs text-slate-500 font-medium">
+                  <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
                     Publish leadership rallies, community town halls, or recorded broadcasts
                   </p>
                 </div>
@@ -154,7 +154,7 @@ export function CreateEventModal({ isOpen, onClose, onSubmit }: CreateEventModal
               <button
                 type="button"
                 onClick={onClose}
-                className="w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 flex items-center justify-center transition-colors"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 flex items-center justify-center transition-colors cursor-pointer"
                 aria-label="Close dialog"
               >
                 <X size={18} />
@@ -162,7 +162,7 @@ export function CreateEventModal({ isOpen, onClose, onSubmit }: CreateEventModal
             </div>
 
             {/* Modal Form Content */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5">
               
               {/* Event Title */}
               <div>

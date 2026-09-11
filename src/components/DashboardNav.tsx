@@ -26,12 +26,40 @@ export interface NavItemConfig {
 
 export const PRIMARY_DASHBOARD_TABS: NavItemConfig[] = [
   {
+    id: 'overview',
+    label: 'Overview',
+    path: '/admin',
+    icon: Home,
+    description: 'Dashboard overview & stats'
+  },
+  {
     id: 'events',
     label: 'Events',
     path: '/admin/events',
     icon: Calendar,
     badge: 'Active',
     description: 'Town halls, rallies & RSVPs'
+  },
+  {
+    id: 'about',
+    label: 'About',
+    path: '/admin/about',
+    icon: User,
+    description: 'Biography & journey milestones'
+  },
+  {
+    id: 'vision',
+    label: 'Vision',
+    path: '/admin/vision',
+    icon: Target,
+    description: 'Policy pillars & manifesto'
+  },
+  {
+    id: 'membership',
+    label: 'Members',
+    path: '/admin/membership',
+    icon: Users,
+    description: 'Volunteers & ward teams'
   }
 ];
 

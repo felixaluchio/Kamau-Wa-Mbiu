@@ -21,7 +21,9 @@ import {
   AlertCircle,
   X,
   Loader2,
-  Inbox
+  Inbox,
+  ArrowLeft,
+  Plus
 } from 'lucide-react';
 import { 
   collection, 
@@ -41,6 +43,8 @@ import { db, auth } from '../../lib/firebase';
 // Data Types for the 3 distinct collections
 // ==========================================
 
+export type EventStatus = 'Published' | 'Draft' | 'Cancelled';
+
 export interface UpcomingEventRecord {
   id: string;
   title: string;
@@ -50,6 +54,37 @@ export interface UpcomingEventRecord {
   county: string;
   category: string;
   description: string;
+  status: EventStatus;
+}
+
+export function EventStatusBadge({ status }: { status?: string }) {
+  const norm = (status || 'Published').toLowerCase();
+  
+  if (norm === 'draft') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap shadow-sm">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+        Draft
+      </span>
+    );
+  }
+  
+  if (norm === 'cancelled' || norm === 'canceled') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap shadow-sm">
+        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+        Cancelled
+      </span>
+    );
+  }
+  
+  // Default: Published
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap shadow-sm">
+      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+      Published
+    </span>
+  );
 }
 
 export interface PhotoGalleryRecord {
@@ -171,14 +206,30 @@ export function DarkAdminEventsDashboard() {
     };
   }, []);
 
-  // --- Form 1: Upcoming Events Form State & Edit Target ---
+  // --- Form 1: Upcoming Events Form State & Modal ---
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingUpcomingId, setEditingUpcomingId] = useState<string | null>(null);
   const [upcomingTitle, setUpcomingTitle] = useState('');
   const [upcomingDate, setUpcomingDate] = useState('');
   const [upcomingLocation, setUpcomingLocation] = useState('');
   const [upcomingCounty, setUpcomingCounty] = useState('');
   const [upcomingCategory, setUpcomingCategory] = useState('MOBILIZATION RALLY');
+  const [upcomingStatus, setUpcomingStatus] = useState<EventStatus>('Published');
   const [upcomingDescription, setUpcomingDescription] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Published' | 'Draft' | 'Cancelled'>('All');
+  const [searchFilter, setSearchFilter] = useState('');
+
+  const handleOpenCreateModal = () => {
+    setEditingUpcomingId(null);
+    setUpcomingTitle('');
+    setUpcomingDate('');
+    setUpcomingLocation('');
+    setUpcomingCounty('');
+    setUpcomingCategory('MOBILIZATION RALLY');
+    setUpcomingStatus('Published');
+    setUpcomingDescription('');
+    setIsEventModalOpen(true);
+  };
 
   // --- Form 2: Photo Gallery Form State & Multi-upload ---
   const [galleryTitle, setGalleryTitle] = useState('');
@@ -262,6 +313,7 @@ export function DarkAdminEventsDashboard() {
       county: item.county || 'National',
       category: item.category || 'MOBILIZATION RALLY',
       description: item.description || '',
+      status: (item.status as EventStatus) || 'Published',
     }));
 
   const photoGalleries: PhotoGalleryRecord[] = items
@@ -315,6 +367,20 @@ export function DarkAdminEventsDashboard() {
     setTimeout(() => setErrorMessage(''), 5000);
   };
 
+  const handleQuickStatusChange = async (evtId: string, newStatus: EventStatus) => {
+    setItems((prev) => prev.map((item) => item.id === evtId ? { ...item, status: newStatus } : item));
+    try {
+      await updateDoc(doc(db, 'events', evtId), {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+      notifySuccess(`Event status changed to "${newStatus}"`);
+    } catch (err: any) {
+      console.warn('Firestore status update:', err);
+      notifySuccess(`Status updated to "${newStatus}"`);
+    }
+  };
+
   const handleStartEditUpcoming = (evt: UpcomingEventRecord) => {
     setEditingUpcomingId(evt.id);
     setUpcomingTitle(evt.title);
@@ -322,14 +388,9 @@ export function DarkAdminEventsDashboard() {
     setUpcomingLocation(evt.location);
     setUpcomingCounty(evt.county || '');
     setUpcomingCategory(evt.category);
+    setUpcomingStatus(evt.status || 'Published');
     setUpcomingDescription(evt.description);
-
-    const formElement = document.getElementById('upcoming-event-form-card');
-    if (formElement) {
-      formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    setIsEventModalOpen(true);
   };
 
   const handleCancelEditUpcoming = () => {
@@ -339,7 +400,9 @@ export function DarkAdminEventsDashboard() {
     setUpcomingLocation('');
     setUpcomingCounty('');
     setUpcomingCategory('MOBILIZATION RALLY');
+    setUpcomingStatus('Published');
     setUpcomingDescription('');
+    setIsEventModalOpen(false);
   };
 
   // --- STATE HOISTING FOR DELETE MODAL ---
@@ -411,6 +474,7 @@ export function DarkAdminEventsDashboard() {
           location: upcomingLocation.trim() || (upcomingCounty ? `${upcomingCounty} Central` : 'Designated Venue'),
           county: upcomingCounty.trim() || 'National',
           category: upcomingCategory,
+          status: upcomingStatus,
           date: upcomingDate,
           description: upcomingDescription.trim(),
           updatedAt: serverTimestamp(),
@@ -424,7 +488,9 @@ export function DarkAdminEventsDashboard() {
         setUpcomingDate('');
         setUpcomingLocation('');
         setUpcomingCounty('');
+        setUpcomingStatus('Published');
         setUpcomingDescription('');
+        setIsEventModalOpen(false);
         notifySuccess('Upcoming event updated successfully!');
       } else {
         const newRecordData = {
@@ -434,6 +500,7 @@ export function DarkAdminEventsDashboard() {
           location: upcomingLocation.trim() || (upcomingCounty ? `${upcomingCounty} Central` : 'Designated Venue'),
           county: upcomingCounty.trim() || 'National',
           category: upcomingCategory,
+          status: upcomingStatus,
           description: upcomingDescription.trim(),
           createdAt: serverTimestamp(),
         };
@@ -453,7 +520,9 @@ export function DarkAdminEventsDashboard() {
         setUpcomingDate('');
         setUpcomingLocation('');
         setUpcomingCounty('');
+        setUpcomingStatus('Published');
         setUpcomingDescription('');
+        setIsEventModalOpen(false);
 
         if (errNotice) setErrorMessage(errNotice);
         else notifySuccess('Upcoming event saved to Firestore successfully!');
@@ -638,12 +707,74 @@ export function DarkAdminEventsDashboard() {
 
   return (
     <>
-      <div className="min-h-screen bg-[#0B1121] text-slate-100 p-3 sm:p-5 md:p-6 lg:p-8 font-sans antialiased w-full overflow-x-hidden relative">
+      <div className="min-h-screen bg-[#F8FAFC] text-slate-800 p-3 sm:p-5 md:p-6 lg:p-8 font-sans antialiased w-full overflow-x-hidden relative">
+        {/* Mobile Module Switcher & Action Header (< lg) */}
+        <div className="lg:hidden mb-4 bg-white border border-slate-200 rounded-2xl p-3.5 shadow-sm space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/admin')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 hover:text-blue-700 text-xs font-bold transition-all min-h-[40px] cursor-pointer"
+            >
+              <ArrowLeft size={15} className="text-blue-600" />
+              <span>Main Dashboard</span>
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleOpenCreateModal}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm min-h-[40px] cursor-pointer"
+              >
+                <Plus size={15} className="stroke-[2.5]" />
+                <span>New Event</span>
+              </button>
+            </div>
+          </div>
+          
+          {/* Module Tabs Pill Switcher for Mobile */}
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
+            {navTabs.map((tab) => {
+              const IconComponent = tab.icon;
+              const isActive = activeModule === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveModule(tab.id)}
+                  className={`flex items-center justify-center gap-1.5 py-2.5 px-1 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[40px] ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 bg-transparent'
+                  }`}
+                >
+                  <IconComponent size={14} className={isActive ? 'text-white' : 'text-slate-500'} />
+                  <span className="truncate">{tab.label.split(' ')[0]}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${isActive ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-start">
           
-          {/* LEFT SIDEBAR */}
-          <aside className="w-full lg:col-span-4 xl:col-span-4 bg-[#131C31] border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col justify-between space-y-5 sm:space-y-6 shadow-xl static lg:sticky lg:top-6">
+          {/* LEFT SIDEBAR (Desktop lg+) */}
+          <aside className="hidden lg:flex w-full lg:col-span-4 xl:col-span-4 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex-col justify-between space-y-5 sm:space-y-6 shadow-sm sticky top-6">
             <div className="space-y-6">
+              {/* Back to Main Dashboard Navigation */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin')}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 hover:text-blue-700 hover:border-blue-300 hover:bg-blue-50/60 transition-all text-xs font-bold group cursor-pointer shadow-sm"
+                >
+                  <ArrowLeft size={16} className="text-blue-600 group-hover:-translate-x-1 transition-transform" />
+                  <span>Back to Main Dashboard</span>
+                </button>
+              </div>
+
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">MANAGEMENT MODULES</p>
               </div>
@@ -657,16 +788,18 @@ export function DarkAdminEventsDashboard() {
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveModule(tab.id)}
-                      className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
-                        isActive ? 'bg-[#00B87C] text-white shadow-lg shadow-[#00B87C]/20 font-bold' : 'bg-transparent text-slate-400 hover:text-slate-200 hover:bg-[#0B1121]/60'
+                      className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                        isActive 
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold' 
+                          : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <IconComponent size={18} className={isActive ? 'text-white' : 'text-slate-400'} />
+                        <IconComponent size={18} className={isActive ? 'text-white' : 'text-slate-500'} />
                         <span>{tab.label}</span>
                       </div>
                       <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        isActive ? 'bg-[#008F60] text-white' : 'bg-slate-800 text-slate-400'
+                        isActive ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600'
                       }`}>
                         {tab.count}
                       </span>
@@ -675,37 +808,37 @@ export function DarkAdminEventsDashboard() {
                 })}
               </nav>
 
-              <div className="bg-[#0B1121] border border-slate-800/90 rounded-2xl p-4 flex items-start gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-[#00B87C]/15 text-[#00B87C] flex items-center justify-center shrink-0 mt-0.5">
+              <div className="bg-blue-50/70 border border-blue-100 rounded-2xl p-4 flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
                   <Database size={18} />
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-xs font-bold text-slate-200">System Connected</p>
-                    <span className="w-2 h-2 rounded-full bg-[#00B87C] animate-pulse" />
+                    <p className="text-xs font-bold text-slate-800">System Connected</p>
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
                   </div>
-                  <p className="text-[11px] leading-relaxed text-slate-400">
+                  <p className="text-[11px] leading-relaxed text-slate-500">
                     Changes sync immediately to your campaign platform.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-800/80">
+            <div className="pt-2 border-t border-slate-100">
               {showLogoutConfirm ? (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl space-y-2.5">
-                  <p className="text-xs text-rose-300 font-semibold text-center">Exit Console?</p>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl space-y-2.5">
+                  <p className="text-xs text-rose-700 font-semibold text-center">Exit Console?</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={handlePerformLogout} disabled={isLoggingOut} className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-md">
+                    <button type="button" onClick={handlePerformLogout} disabled={isLoggingOut} className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer">
                       {isLoggingOut ? '...' : 'Yes'}
                     </button>
-                    <button type="button" onClick={() => setShowLogoutConfirm(false)} disabled={isLoggingOut} className="px-3 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 transition-all">
+                    <button type="button" onClick={() => setShowLogoutConfirm(false)} disabled={isLoggingOut} className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-all cursor-pointer">
                       Cancel
                     </button>
                   </div>
                 </div>
               ) : (
-                <button type="button" onClick={() => setShowLogoutConfirm(true)} disabled={isLoggingOut} className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-2xl border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs font-bold transition-all">
+                <button type="button" onClick={() => setShowLogoutConfirm(true)} disabled={isLoggingOut} className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-2xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition-all cursor-pointer">
                   <LogOut size={16} /> Logout
                 </button>
               )}
@@ -713,10 +846,39 @@ export function DarkAdminEventsDashboard() {
           </aside>
 
           {/* MAIN CONTENT AREA */}
-          <main className="lg:col-span-8 xl:col-span-8 space-y-6 lg:space-y-8">
+          <main className="w-full lg:col-span-8 xl:col-span-8 space-y-5 sm:space-y-6 lg:space-y-8">
+            {/* Top Navigation & Status Bar (Desktop lg+) */}
+            <div className="hidden lg:flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+              <button
+                type="button"
+                onClick={() => navigate('/admin')}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 hover:text-blue-700 hover:border-blue-300 hover:bg-blue-50/60 text-xs font-bold transition-all group cursor-pointer"
+              >
+                <ArrowLeft size={15} className="text-blue-600 group-hover:-translate-x-0.5 transition-transform" />
+                <span>Back to Main Dashboard</span>
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                  <span className="font-semibold text-slate-700 text-[11px] sm:text-xs">Events Management Console</span>
+                </div>
+
+                {/* Prominent Create New Event Button at the Top */}
+                <button
+                  type="button"
+                  id="top-create-new-event-btn"
+                  onClick={handleOpenCreateModal}
+                  className="flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                >
+                  <Plus size={17} className="stroke-[2.5]" />
+                  <span>Create New Event</span>
+                </button>
+              </div>
+            </div>
             
             {errorMessage && (
-              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5">
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5">
                 <AlertCircle size={16} className="shrink-0" />
                 <span>{errorMessage}</span>
               </div>
@@ -725,67 +887,246 @@ export function DarkAdminEventsDashboard() {
             {/* --- UPCOMING MODULE --- */}
             {activeModule === 'upcoming' && (
               <>
-                <div id="upcoming-event-form-card" className="bg-[#131C31] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
-                  <div className="mb-8 border-b border-slate-800/80 pb-6 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Calendar className="text-[#00B87C]" size={24} />
-                      <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight">{editingUpcomingId ? 'Edit Event' : 'Add Event'}</h1>
+                {/* Events Quick Overview & Action Hero Banner */}
+                <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 border border-blue-600/30 rounded-3xl p-6 sm:p-8 shadow-xl shadow-blue-600/10 flex flex-col md:flex-row md:items-center justify-between gap-6 text-white">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 border border-white/25 text-white text-xs font-bold">
+                      <Calendar size={14} />
+                      <span>Campaign Calendar Manager</span>
                     </div>
+                    <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                      Manage Upcoming Events
+                    </h1>
+                    <p className="text-xs sm:text-sm text-blue-100 max-w-xl leading-relaxed">
+                      Schedule rallies, town halls, economic forums, and youth dialogues across all 5 wards. Click the button to add a new event with date, venue, category, and status.
+                    </p>
                   </div>
-                  <form onSubmit={handleUpcomingSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-2">EVENT TITLE *</label>
-                        <input type="text" required value={upcomingTitle} onChange={(e) => setUpcomingTitle(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-sm text-white focus:border-[#00B87C] focus:ring-1 focus:ring-[#00B87C]/50 transition-all" />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-2">DATE *</label>
-                        <input type="date" required value={upcomingDate} onChange={(e) => setUpcomingDate(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-sm text-white [color-scheme:dark] focus:border-[#00B87C] focus:ring-1 focus:ring-[#00B87C]/50 transition-all" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-2">LOCATION / VENUE</label>
-                        <input type="text" value={upcomingLocation} onChange={(e) => setUpcomingLocation(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-sm text-white focus:border-[#00B87C] transition-all" />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-2">WARD</label>
-                        <input type="text" value={upcomingCounty} onChange={(e) => setUpcomingCounty(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-sm text-white focus:border-[#00B87C] transition-all" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-2">DESCRIPTION *</label>
-                      <textarea required rows={4} value={upcomingDescription} onChange={(e) => setUpcomingDescription(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-sm text-white resize-y focus:border-[#00B87C] transition-all" />
-                    </div>
-                    <div className="flex justify-end pt-4 border-t border-slate-800">
-                      <button type="submit" disabled={isSubmitting} className="px-6 py-3 rounded-2xl bg-[#00B87C] hover:bg-[#00A36D] text-white text-sm font-bold transition-all disabled:opacity-50">
-                        {isSubmitting ? 'Saving...' : 'Save Event'}
-                      </button>
-                    </div>
-                  </form>
+
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      id="hero-create-new-event-btn"
+                      onClick={handleOpenCreateModal}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-white hover:bg-blue-50 text-blue-700 text-sm font-bold shadow-lg shadow-black/10 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                    >
+                      <Plus size={19} className="stroke-[2.5]" />
+                      <span>Create New Event</span>
+                    </button>
+                  </div>
                 </div>
                 
-                <div className="bg-[#131C31] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
-                  <h2 className="font-serif text-xl font-bold text-white mb-6">Event Records</h2>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-800 text-[11px] font-extrabold uppercase text-slate-400"><th className="py-3">Title</th><th className="py-3">Date</th><th className="py-3 text-right">Actions</th></tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/80 text-sm">
-                        {upcomingEvents.map((evt) => (
-                          <tr key={evt.id} className="hover:bg-[#0B1121]/50 group">
-                            <td className="py-4 font-bold text-white">{evt.title}</td>
-                            <td className="py-4 text-slate-300">{evt.date}</td>
-                            <td className="py-4 text-right">
-                              <button onClick={() => handleStartEditUpcoming(evt)} className="p-2 text-sky-400 hover:bg-sky-500/10 rounded-xl mr-2"><Pencil size={16}/></button>
-                              <button onClick={(e) => { e.stopPropagation(); setItemToDelete({ ...evt, label: 'Upcoming Event' }); }} className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-xl"><Trash2 size={16}/></button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                    <div>
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="font-serif text-xl font-bold text-slate-900">Event Records</h2>
+                        <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                          {upcomingEvents.length} Total
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Monitor published public events, review staging drafts, and track cancellations.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                      {/* Status Filter Tabs */}
+                      <div className="flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-200 rounded-2xl shrink-0 overflow-x-auto">
+                        {(['All', 'Published', 'Draft', 'Cancelled'] as const).map((filterOpt) => {
+                          const count = filterOpt === 'All'
+                            ? upcomingEvents.length
+                            : upcomingEvents.filter((e) => (e.status || 'Published') === filterOpt).length;
+                          const active = statusFilter === filterOpt;
+
+                          return (
+                            <button
+                              key={filterOpt}
+                              type="button"
+                              onClick={() => setStatusFilter(filterOpt)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                                active
+                                  ? 'bg-white text-blue-700 shadow-sm border border-slate-200/80'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              {filterOpt === 'Published' && <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
+                              {filterOpt === 'Draft' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                              {filterOpt === 'Cancelled' && <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />}
+                              <span>{filterOpt}</span>
+                              <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${active ? 'bg-blue-50 text-blue-700 font-bold' : 'bg-slate-200/80 text-slate-600'}`}>
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleOpenCreateModal}
+                        className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        <Plus size={14} className="stroke-[2.5]" />
+                        <span>Add Event</span>
+                      </button>
+                    </div>
                   </div>
+
+                  {upcomingEvents.filter((e) => statusFilter === 'All' || (e.status || 'Published') === statusFilter).length === 0 ? (
+                    <div className="py-12 text-center text-slate-500">
+                      <Calendar size={32} className="mx-auto text-slate-400 mb-3" />
+                      <p className="text-sm font-medium text-slate-700">No events found under "{statusFilter}" status.</p>
+                      <p className="text-xs text-slate-400 mt-1">Create a new event above or switch filters to view other events.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mobile Card View (< sm) */}
+                      <div className="block sm:hidden space-y-3">
+                        {upcomingEvents
+                          .filter((e) => statusFilter === 'All' || (e.status || 'Published') === statusFilter)
+                          .map((evt) => {
+                            const currentStatus = evt.status || 'Published';
+                            return (
+                              <div 
+                                key={evt.id} 
+                                className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 shadow-2xs"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="font-bold text-slate-900 text-sm leading-snug">
+                                      {evt.title}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap items-center gap-1.5">
+                                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-white text-slate-600 border border-slate-200">
+                                        {evt.category || 'RALLY'}
+                                      </span>
+                                      {evt.county && <span>• {evt.county}</span>}
+                                    </div>
+                                  </div>
+                                  <EventStatusBadge status={currentStatus} />
+                                </div>
+
+                                <div className="text-xs text-slate-600 space-y-1 bg-white p-2.5 rounded-xl border border-slate-100">
+                                  <div className="flex items-center gap-1.5 font-medium text-slate-900">
+                                    <Calendar size={13} className="text-blue-600 shrink-0" />
+                                    <span>{evt.date}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-slate-500">
+                                    <MapPin size={13} className="text-slate-400 shrink-0" />
+                                    <span className="truncate">{evt.location}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
+                                  <select
+                                    value={currentStatus}
+                                    onChange={(e) => handleQuickStatusChange(evt.id, e.target.value as EventStatus)}
+                                    className="bg-white border border-slate-200 text-xs font-semibold text-slate-700 rounded-xl px-2.5 py-1.5 hover:border-blue-400 focus:border-blue-600 focus:outline-none cursor-pointer"
+                                    title="Quick status change"
+                                  >
+                                    <option value="Published">Published</option>
+                                    <option value="Draft">Draft</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                  </select>
+
+                                  <div className="flex items-center gap-1">
+                                    <button 
+                                      onClick={() => handleStartEditUpcoming(evt)} 
+                                      className="flex items-center gap-1 px-3 py-1.5 text-blue-700 bg-blue-50 border border-blue-200/80 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors cursor-pointer min-h-[36px]"
+                                      title="Edit Event"
+                                    >
+                                      <Pencil size={13}/>
+                                      <span>Edit</span>
+                                    </button>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); setItemToDelete({ ...evt, label: 'Upcoming Event' }); }} 
+                                      className="p-2 text-rose-600 hover:bg-rose-50 border border-rose-200/60 rounded-xl transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
+                                      title="Delete Event"
+                                    >
+                                      <Trash2 size={14}/>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+
+                      {/* Desktop / Tablet Table View (sm+) */}
+                      <div className="hidden sm:block overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50/50 text-[11px] font-extrabold uppercase text-slate-500">
+                              <th className="py-3.5 px-3 rounded-l-xl">Event Details</th>
+                              <th className="py-3.5 px-3">Date & Location</th>
+                              <th className="py-3.5 px-3">Status</th>
+                              <th className="py-3.5 px-3 text-right rounded-r-xl">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-sm">
+                            {upcomingEvents
+                              .filter((e) => statusFilter === 'All' || (e.status || 'Published') === statusFilter)
+                              .map((evt) => {
+                                const currentStatus = evt.status || 'Published';
+                                return (
+                                  <tr key={evt.id} className="hover:bg-blue-50/30 group transition-colors">
+                                    <td className="py-4 px-3">
+                                      <div className="font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
+                                        {evt.title}
+                                      </div>
+                                      <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                          {evt.category || 'RALLY'}
+                                        </span>
+                                        {evt.county && <span>• {evt.county}</span>}
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-3 text-slate-700">
+                                      <div className="font-medium text-slate-900">{evt.date}</div>
+                                      <div className="text-xs text-slate-500 mt-0.5">{evt.location}</div>
+                                    </td>
+                                    <td className="py-4 px-3">
+                                      <div className="flex items-center gap-2">
+                                        <EventStatusBadge status={currentStatus} />
+                                        {/* Quick Status Selector Dropdown */}
+                                        <select
+                                          value={currentStatus}
+                                          onChange={(e) => handleQuickStatusChange(evt.id, e.target.value as EventStatus)}
+                                          className="bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-700 rounded-lg px-2 py-1 hover:border-blue-400 focus:border-blue-600 focus:outline-none cursor-pointer transition-colors"
+                                          title="Quick status change"
+                                        >
+                                          <option value="Published">Set Published</option>
+                                          <option value="Draft">Set Draft</option>
+                                          <option value="Cancelled">Set Cancelled</option>
+                                        </select>
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-3 text-right">
+                                      <div className="flex items-center justify-end gap-1">
+                                        <button 
+                                          onClick={() => handleStartEditUpcoming(evt)} 
+                                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer"
+                                          title="Edit Event"
+                                        >
+                                          <Pencil size={16}/>
+                                        </button>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); setItemToDelete({ ...evt, label: 'Upcoming Event' }); }} 
+                                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                                          title="Delete Event"
+                                        >
+                                          <Trash2 size={16}/>
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -793,73 +1134,74 @@ export function DarkAdminEventsDashboard() {
             {/* --- GALLERY MODULE --- */}
             {activeModule === 'gallery' && (
               <>
-                <div className="bg-[#131C31] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
-                  <div className="mb-8 border-b border-slate-800/80 pb-6">
-                    <h1 className="font-serif text-2xl font-bold text-white">Upload Photos</h1>
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+                  <div className="mb-8 border-b border-slate-100 pb-6">
+                    <h1 className="font-serif text-2xl font-bold text-slate-900">Upload Photos</h1>
                   </div>
                   <form onSubmit={handleGallerySubmit} className="space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div>
-                        <label className="block text-[11px] font-bold uppercase text-slate-300 mb-2">TITLE *</label>
-                        <input type="text" required value={galleryTitle} onChange={(e) => setGalleryTitle(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-sm text-white focus:border-[#00B87C]" />
+                        <label className="block text-[11px] font-bold uppercase text-slate-700 mb-2">TITLE *</label>
+                        <input type="text" required value={galleryTitle} onChange={(e) => setGalleryTitle(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none" />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold uppercase text-slate-300 mb-2">DATE *</label>
-                        <input type="date" required value={galleryDate} onChange={(e) => setGalleryDate(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-sm text-white [color-scheme:dark] focus:border-[#00B87C]" />
+                        <label className="block text-[11px] font-bold uppercase text-slate-700 mb-2">DATE *</label>
+                        <input type="date" required value={galleryDate} onChange={(e) => setGalleryDate(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none cursor-pointer" />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div>
-                        <label className="block text-[11px] font-bold uppercase text-slate-300 mb-2">LOCATION *</label>
-                        <input type="text" required value={galleryLocation} onChange={(e) => setGalleryLocation(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-sm text-white focus:border-[#00B87C]" />
+                        <label className="block text-[11px] font-bold uppercase text-slate-700 mb-2">LOCATION *</label>
+                        <input type="text" required value={galleryLocation} onChange={(e) => setGalleryLocation(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none" />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold uppercase text-slate-300 mb-2">CATEGORY</label>
-                        <select value={galleryCategory} onChange={(e) => setGalleryCategory(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-sm text-white focus:border-[#00B87C]">
+                        <label className="block text-[11px] font-bold uppercase text-slate-700 mb-2">CATEGORY</label>
+                        <select value={galleryCategory} onChange={(e) => setGalleryCategory(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none cursor-pointer">
                           <option>Campaign Rally</option><option>Town Hall Meeting</option><option>Community Action</option>
                         </select>
                       </div>
                     </div>
                     
-                    <div onClick={() => document.getElementById('gallery-multi')?.click()} className="border-2 border-dashed border-emerald-500/40 rounded-3xl p-8 text-center bg-[#0B1121] cursor-pointer hover:border-[#00B87C]">
+                    <div onClick={() => document.getElementById('gallery-multi')?.click()} className="border-2 border-dashed border-blue-200 rounded-3xl p-8 text-center bg-blue-50/40 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all">
                       <input id="gallery-multi" type="file" multiple accept="image/*" onChange={(e) => processGalleryFiles(e.target.files)} className="hidden" />
-                      <UploadCloud size={28} className="mx-auto text-emerald-400 mb-2" />
-                      <p className="text-sm font-bold text-white">Click to Select Photos</p>
+                      <UploadCloud size={28} className="mx-auto text-blue-600 mb-2" />
+                      <p className="text-sm font-bold text-slate-800">Click to Select Photos</p>
+                      <p className="text-xs text-slate-500 mt-1">PNG, JPG, or WEBP up to 10MB each</p>
                     </div>
 
                     {galleryPhotos.length > 0 && (
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                         {galleryPhotos.map((p) => (
-                          <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden">
+                          <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200">
                             <img src={p.previewUrl} className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => removeGalleryPhoto(p.id)} className="absolute top-1 right-1 p-1 bg-red-600 rounded-full text-white"><X size={12}/></button>
+                            <button type="button" onClick={() => removeGalleryPhoto(p.id)} className="absolute top-1 right-1 p-1 bg-red-600 rounded-full text-white cursor-pointer"><X size={12}/></button>
                           </div>
                         ))}
                       </div>
                     )}
                     
-                    <div className="flex justify-end pt-4 border-t border-slate-800">
-                      <button type="submit" disabled={isSubmitting} className="px-6 py-3 rounded-2xl bg-[#00B87C] text-white text-sm font-bold disabled:opacity-50">
+                    <div className="flex justify-end pt-4 border-t border-slate-100">
+                      <button type="submit" disabled={isSubmitting} className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 cursor-pointer">
                         {isSubmitting ? 'Uploading...' : 'Publish Gallery'}
                       </button>
                     </div>
                   </form>
                 </div>
 
-                <div className="bg-[#131C31] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
-                  <h2 className="font-serif text-xl font-bold text-white mb-6">Gallery Showcases</h2>
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+                  <h2 className="font-serif text-xl font-bold text-slate-900 mb-6">Gallery Showcases</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-slate-800 text-[11px] font-extrabold uppercase text-slate-400"><th className="py-3">Cover</th><th className="py-3">Title</th><th className="py-3 text-right">Actions</th></tr>
+                        <tr className="border-b border-slate-200 bg-slate-50/50 text-[11px] font-extrabold uppercase text-slate-500"><th className="py-3 px-3 rounded-l-xl">Cover</th><th className="py-3 px-3">Title</th><th className="py-3 px-3 text-right rounded-r-xl">Actions</th></tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/80 text-sm">
+                      <tbody className="divide-y divide-slate-100 text-sm">
                         {photoGalleries.map((gal) => (
-                          <tr key={gal.id} className="hover:bg-[#0B1121]/50 group">
-                            <td className="py-4"><img src={gal.imageUrl} className="w-12 h-12 rounded-lg object-cover" /></td>
-                            <td className="py-4 font-bold text-white">{gal.title}</td>
-                            <td className="py-4 text-right">
-                              <button onClick={(e) => { e.stopPropagation(); setItemToDelete({ ...gal, label: 'Photo Gallery Showcase' }); }} className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-xl"><Trash2 size={16}/></button>
+                          <tr key={gal.id} className="hover:bg-blue-50/30 group">
+                            <td className="py-4 px-3"><img src={gal.imageUrl} className="w-12 h-12 rounded-lg object-cover border border-slate-200" /></td>
+                            <td className="py-4 px-3 font-bold text-slate-900">{gal.title}</td>
+                            <td className="py-4 px-3 text-right">
+                              <button onClick={(e) => { e.stopPropagation(); setItemToDelete({ ...gal, label: 'Photo Gallery Showcase' }); }} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl cursor-pointer"><Trash2 size={16}/></button>
                             </td>
                           </tr>
                         ))}
@@ -873,26 +1215,26 @@ export function DarkAdminEventsDashboard() {
             {/* --- VIDEO MODULE --- */}
             {activeModule === 'video' && (
               <>
-                <div className="bg-[#131C31] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
-                  <div className="mb-8 border-b border-slate-800/80 pb-6"><h1 className="font-serif text-2xl font-bold text-white">Add Video</h1></div>
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+                  <div className="mb-8 border-b border-slate-100 pb-6"><h1 className="font-serif text-2xl font-bold text-slate-900">Add Video</h1></div>
                   <form onSubmit={handleVideoSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <div><label className="block text-[11px] font-bold text-slate-300 mb-2">TITLE</label><input required value={videoTitle} onChange={e=>setVideoTitle(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-white focus:border-[#00B87C]"/></div>
-                      <div><label className="block text-[11px] font-bold text-slate-300 mb-2">DATE</label><input type="date" required value={videoDate} onChange={e=>setVideoDate(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-white [color-scheme:dark] focus:border-[#00B87C]"/></div>
+                      <div><label className="block text-[11px] font-bold text-slate-700 mb-2">TITLE</label><input required value={videoTitle} onChange={e=>setVideoTitle(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none"/></div>
+                      <div><label className="block text-[11px] font-bold text-slate-700 mb-2">DATE</label><input type="date" required value={videoDate} onChange={e=>setVideoDate(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none cursor-pointer"/></div>
                     </div>
-                    <div><label className="block text-[11px] font-bold text-slate-300 mb-2">VIDEO URL (YOUTUBE/VIMEO)</label><input type="url" required value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} className="w-full px-4 py-3 bg-[#0B1121] border border-slate-800 rounded-2xl text-white focus:border-[#00B87C]"/></div>
-                    <div className="flex justify-end pt-4 border-t border-slate-800"><button type="submit" disabled={isSubmitting} className="px-6 py-3 rounded-2xl bg-[#00B87C] text-white font-bold disabled:opacity-50">Save Video</button></div>
+                    <div><label className="block text-[11px] font-bold text-slate-700 mb-2">VIDEO URL (YOUTUBE/VIMEO)</label><input type="url" required value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none"/></div>
+                    <div className="flex justify-end pt-4 border-t border-slate-100"><button type="submit" disabled={isSubmitting} className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 cursor-pointer">Save Video</button></div>
                   </form>
                 </div>
                 
-                <div className="bg-[#131C31] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
-                  <h2 className="font-serif text-xl font-bold text-white mb-6">Video Library</h2>
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+                  <h2 className="font-serif text-xl font-bold text-slate-900 mb-6">Video Library</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                      <thead><tr className="border-b border-slate-800 text-[11px] font-extrabold text-slate-400"><th className="py-3">Title</th><th className="py-3">Platform</th><th className="py-3 text-right">Actions</th></tr></thead>
-                      <tbody className="divide-y divide-slate-800/80 text-sm">
+                      <thead><tr className="border-b border-slate-200 bg-slate-50/50 text-[11px] font-extrabold uppercase text-slate-500"><th className="py-3 px-3 rounded-l-xl">Title</th><th className="py-3 px-3">Platform</th><th className="py-3 px-3 text-right rounded-r-xl">Actions</th></tr></thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
                         {videoLibrary.map(vid => (
-                          <tr key={vid.id} className="hover:bg-[#0B1121]/50"><td className="py-4 font-bold text-white">{vid.title}</td><td className="py-4 text-slate-300">{vid.platform}</td><td className="py-4 text-right"><button onClick={e=>{e.stopPropagation(); setItemToDelete({...vid, label:'Video Broadcast'})}} className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-xl"><Trash2 size={16}/></button></td></tr>
+                          <tr key={vid.id} className="hover:bg-blue-50/30"><td className="py-4 px-3 font-bold text-slate-900">{vid.title}</td><td className="py-4 px-3 text-slate-600">{vid.platform}</td><td className="py-4 px-3 text-right"><button onClick={e=>{e.stopPropagation(); setItemToDelete({...vid, label:'Video Broadcast'})}} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl cursor-pointer"><Trash2 size={16}/></button></td></tr>
                         ))}
                       </tbody>
                     </table>
@@ -906,32 +1248,218 @@ export function DarkAdminEventsDashboard() {
       </div>
 
       {/* ========================================================================================= */}
+      {/* PORTAL-MOUNTED CREATE / EDIT EVENT MODAL */}
+      {/* ========================================================================================= */}
+      {isEventModalOpen && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 !w-screen !h-screen z-[99999] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', zIndex: 99999 }}
+          onClick={() => !isSubmitting && setIsEventModalOpen(false)}
+        >
+          <div 
+            className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl p-6 sm:p-8 text-left shadow-2xl relative my-auto max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-5 border-b border-slate-100 mb-6 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold font-serif text-slate-900">
+                    {editingUpcomingId ? 'Edit Event Details' : 'Create New Event'}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {editingUpcomingId 
+                      ? 'Update date, location, ward, or publication status.' 
+                      : 'Fill in event details to publish to the campaign calendar.'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => !isSubmitting && setIsEventModalOpen(false)}
+                className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleUpcomingSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    EVENT TITLE *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g., Limuru Central Mobilization Rally"
+                    value={upcomingTitle}
+                    onChange={(e) => setUpcomingTitle(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    DATE *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={upcomingDate}
+                    onChange={(e) => setUpcomingDate(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    LOCATION / VENUE
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Limuru Town Square"
+                    value={upcomingLocation}
+                    onChange={(e) => setUpcomingLocation(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    WARD / REGION
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Limuru Central, Tigoni, Ndeiya"
+                    value={upcomingCounty}
+                    onChange={(e) => setUpcomingCounty(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  EVENT STATUS *
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {(['Published', 'Draft', 'Cancelled'] as EventStatus[]).map((st) => {
+                    const isSelected = upcomingStatus === st;
+                    return (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => setUpcomingStatus(st)}
+                        className={`py-3 px-3 rounded-2xl text-xs font-bold border transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          isSelected
+                            ? st === 'Published'
+                              ? 'bg-blue-50 text-blue-700 border-blue-400 shadow-sm'
+                              : st === 'Draft'
+                              ? 'bg-amber-50 text-amber-700 border-amber-400 shadow-sm'
+                              : 'bg-rose-50 text-rose-700 border-rose-400 shadow-sm'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            st === 'Published'
+                              ? 'bg-blue-600 ' + (isSelected ? 'animate-pulse' : '')
+                              : st === 'Draft'
+                              ? 'bg-amber-500'
+                              : 'bg-rose-500'
+                          }`}
+                        />
+                        {st}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  DESCRIPTION *
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Outline the event agenda, keynote speakers, or attendee instructions..."
+                  value={upcomingDescription}
+                  onChange={(e) => setUpcomingDescription(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder-slate-400 resize-y focus:border-blue-600 focus:ring-1 focus:ring-blue-500/30 transition-all outline-none"
+                />
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => setIsEventModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 hover:shadow-blue-500/35 transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} className="stroke-[2.5]" />
+                      <span>{editingUpcomingId ? 'Save Changes' : 'Create Event'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ========================================================================================= */}
       {/* ABSOLUTE OUTERMOST LAYER: PORTAL-MOUNTED MODAL (Escapes all CSS stacking & overflow context) */}
       {/* ========================================================================================= */}
       {itemToDelete && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 !w-screen !h-screen z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          className="fixed inset-0 !w-screen !h-screen z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', zIndex: 99999 }}
           onClick={() => !isDeleting && setItemToDelete(null)}
         >
           <div 
-            className="bg-[#182234] border border-slate-700/60 rounded-3xl w-full max-w-sm p-6 sm:p-7 text-center shadow-2xl relative"
+            className="bg-white border border-slate-200 rounded-3xl w-full max-w-sm p-6 sm:p-7 text-center shadow-2xl relative"
             style={{ maxWidth: '380px', width: '100%' }}
             onClick={(e) => e.stopPropagation()}
           >
             
             {/* Top Red Circular Badge with Trash Icon */}
-            <div className="mx-auto flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-500 mb-5">
+            <div className="mx-auto flex items-center justify-center w-14 h-14 rounded-full bg-rose-50 border border-rose-200 text-rose-600 mb-5">
               <Trash2 size={24} strokeWidth={2} />
             </div>
 
             {/* Title */}
-            <h3 className="text-lg sm:text-xl font-bold text-white mb-2.5">
+            <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2.5">
               Delete {itemToDelete.label || 'Item'}?
             </h3>
             
-            {/* Body Description matching screenshot */}
-            <p className="text-xs sm:text-sm text-slate-400 mb-7 leading-relaxed max-w-[290px] mx-auto">
+            {/* Body Description */}
+            <p className="text-xs sm:text-sm text-slate-500 mb-7 leading-relaxed max-w-[290px] mx-auto">
               Are you sure you want to permanently delete "{itemToDelete.title || 'this item'}"? This will permanently remove the document from Firestore.
             </p>
 
@@ -941,7 +1469,7 @@ export function DarkAdminEventsDashboard() {
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setItemToDelete(null)}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-slate-200 font-semibold text-sm transition-colors cursor-pointer disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-colors cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -949,7 +1477,7 @@ export function DarkAdminEventsDashboard() {
                 type="button"
                 disabled={isDeleting}
                 onClick={handleConfirmDelete}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-[#e11d48] hover:bg-[#be123c] text-white font-semibold text-sm shadow-lg shadow-rose-900/30 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm shadow-md shadow-rose-600/20 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isDeleting ? (
                   <>

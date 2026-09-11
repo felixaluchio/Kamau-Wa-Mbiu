@@ -1,6 +1,17 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, initializeFirestore } from "firebase/firestore";
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager,
+  setLogLevel 
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+
+// Suppress Firestore verbose offline connection retry logs in console
+try {
+  setLogLevel('error');
+} catch (_) {}
 
 const firebaseConfig = {
   apiKey: "AIzaSyAN-9Yp6AZz1gfu5rBQNr3y3yc7etw_yB0",
@@ -13,15 +24,23 @@ const firebaseConfig = {
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with experimentalForceLongPolling to prevent backend disconnects
-// in sandboxed iframe environments where WebSockets may be blocked or dropped.
+// Initialize Firestore with auto-detect long polling and multi-tab persistent cache
 let db: ReturnType<typeof getFirestore>;
 try {
   db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
+    experimentalAutoDetectLongPolling: true,
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
   });
 } catch (_) {
-  db = getFirestore(app);
+  try {
+    db = initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+    });
+  } catch (_err) {
+    db = getFirestore(app);
+  }
 }
 
 const auth = getAuth(app);

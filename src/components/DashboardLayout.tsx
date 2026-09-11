@@ -290,11 +290,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="relative" ref={notificationRef}>
                 <button 
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                  className="relative p-2.5 rounded-xl text-brand-neutral-charcoal/70 hover:text-brand-primary hover:bg-brand-neutral-warm border border-transparent hover:border-brand-neutral-grey/30 transition-all"
+                  className="relative p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-brand-neutral-charcoal/70 hover:text-brand-primary hover:bg-brand-neutral-warm border border-transparent hover:border-brand-neutral-grey/30 transition-all cursor-pointer"
                   aria-label="Notifications"
                 >
                   <Bell size={19} />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error-500 rounded-full ring-2 ring-white"></span>
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-error-500 rounded-full ring-2 ring-white"></span>
                 </button>
 
                 <AnimatePresence>
@@ -304,13 +304,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.96 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-3xl border border-brand-neutral-grey/30 shadow-2xl p-4 z-50 space-y-3"
+                      className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 bg-white rounded-3xl border border-brand-neutral-grey/30 shadow-2xl p-4 z-50 space-y-3"
                     >
                       <div className="flex items-center justify-between pb-2 border-b border-brand-neutral-grey/20">
                         <span className="font-heading text-sm font-bold text-brand-neutral-charcoal">Recent Activity</span>
                         <span className="text-[10px] font-bold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full">3 New</span>
                       </div>
-                      <div className="space-y-2 max-h-64 overflow-y-auto divide-y divide-brand-neutral-grey/10 text-xs">
+                      <div className="space-y-2 max-h-60 overflow-y-auto divide-y divide-brand-neutral-grey/10 text-xs">
                         <div className="pt-2">
                           <p className="font-bold text-brand-neutral-charcoal">New Volunteer Registered</p>
                           <p className="text-[11px] text-brand-neutral-charcoal/60">Faith Njoki signed up for Limuru Central ward coordination.</p>
@@ -362,9 +362,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                  className="flex items-center gap-2.5 p-1.5 sm:px-3 sm:py-2 rounded-2xl hover:bg-brand-neutral-warm border border-transparent hover:border-brand-neutral-grey/30 transition-all group"
+                  className="flex items-center gap-2 p-1 sm:px-3 sm:py-2 min-h-[44px] rounded-2xl hover:bg-brand-neutral-warm border border-transparent hover:border-brand-neutral-grey/30 transition-all group cursor-pointer"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-brand-primary text-white flex items-center justify-center font-heading font-extrabold text-sm shadow-sm shadow-brand-primary/20">
+                  <div className="w-9 h-9 rounded-xl bg-brand-primary text-white flex items-center justify-center font-heading font-extrabold text-sm shadow-sm shadow-brand-primary/20 shrink-0">
                     KW
                   </div>
                   <div className="text-left hidden sm:block">
@@ -385,7 +385,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.96 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-64 bg-white rounded-3xl border border-brand-neutral-grey/30 shadow-2xl p-3 z-50 space-y-1.5"
+                      className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-[280px] sm:w-64 bg-white rounded-3xl border border-brand-neutral-grey/30 shadow-2xl p-3 z-50 space-y-1.5"
                     >
                       <div className="p-3 bg-brand-neutral-warm/60 rounded-2xl border border-brand-neutral-grey/20 mb-2">
                         <p className="text-xs font-extrabold text-brand-neutral-charcoal">Kamau Wa Mbiu</p>
@@ -394,15 +394,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                           <ShieldCheck size={12} /> Super Administrator
                         </div>
                       </div>
-
-                      <Link
-                        to="/admin/settings"
-                        onClick={() => setIsProfileDropdownOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-brand-neutral-charcoal hover:bg-brand-neutral-warm hover:text-brand-primary transition-colors"
-                      >
-                        <SettingsIcon size={16} className="text-brand-neutral-charcoal/50" />
-                        Platform Settings
-                      </Link>
 
                       <Link
                         to="/admin/about"
@@ -439,7 +430,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </header>
 
           {/* Page Dynamic Body Area */}
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-brand-neutral-warm/60 pb-28 md:pb-8">
+          <main className="flex-1 overflow-y-auto p-3.5 sm:p-6 lg:p-8 bg-brand-neutral-warm/60 pb-24 md:pb-8">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}
@@ -457,27 +448,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </div>
 
-      {/* 4. Mobile Bottom Navigation Bar (For quick 1-tap switching between the 4 primary tabs) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-brand-neutral-grey/30 px-2 py-2 z-40 shadow-lg">
-        <div className="grid grid-cols-4 gap-1 items-center">
+      {/* 4. Mobile Bottom Navigation Bar (For quick 1-tap switching between the 5 primary tabs) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-brand-neutral-grey/30 px-1 py-1.5 z-40 shadow-lg safe-area-bottom">
+        <div className="grid grid-cols-5 gap-0.5 items-center">
           {PRIMARY_DASHBOARD_TABS.map((tab) => {
-            const active = location.pathname === tab.path || (location.pathname.startsWith(tab.path) && tab.path !== '/admin' && tab.path !== '/dashboard');
+            const isTabActive = tab.path === '/admin'
+              ? (location.pathname === '/admin' || location.pathname === '/dashboard' || location.pathname === '/admin/' || location.pathname === '/dashboard/')
+              : (location.pathname === tab.path || location.pathname.startsWith(tab.path));
             const Icon = tab.icon;
 
             return (
               <Link
                 key={tab.id}
                 to={tab.path}
-                className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-center transition-all ${
-                  active 
+                className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl text-center transition-all min-h-[44px] ${
+                  isTabActive 
                     ? 'text-brand-primary font-bold' 
                     : 'text-brand-neutral-charcoal/50 hover:text-brand-neutral-charcoal'
                 }`}
               >
-                <div className={`p-1 rounded-lg transition-colors ${active ? 'bg-brand-primary/10 text-brand-primary' : ''}`}>
-                  <Icon size={19} />
+                <div className={`p-1.5 rounded-xl transition-colors ${isTabActive ? 'bg-brand-primary/10 text-brand-primary ring-1 ring-brand-primary/20' : ''}`}>
+                  <Icon size={18} />
                 </div>
-                <span className="text-[10px] tracking-tight truncate w-full mt-0.5">
+                <span className="text-[10px] tracking-tight truncate w-full mt-0.5 leading-tight">
                   {tab.label}
                 </span>
               </Link>
